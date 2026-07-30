@@ -1,30 +1,35 @@
 # IA-Youtube
 
-An AI-powered YouTube Live Moderator that automatically reads live chat messages, processes them with AI, and replies in real time.
+An AI-powered YouTube Live Moderator that automatically reads YouTube Live Chat messages and generates AI responses in real time.
+
+The bot supports **Google Gemini** and **OpenAI-compatible APIs**, making it easy to integrate with your preferred AI provider.
 
 ---
 
-# Features
+## Features
 
-- 📺 Read YouTube Live Chat in real time
-- 🤖 AI-powered automatic replies
-- 💬 Support for Gemini AI
-- 🔗 Support for Custom OpenAI-Compatible APIs
-- 🛡️ Anti-spam and blacklist system
-- ⚡ Multi-threaded message queue
-- 📡 Automatic livestream detection
-- 🎥 OBS integration
-- 🔄 Automatic recovery from unexpected errors
+- 📺 Read YouTube Live Chat automatically
+- 🤖 AI-generated replies
+- 💬 Google Gemini support
+- 🔗 Custom OpenAI-Compatible API support
+- 🛡️ Basic spam filtering and blacklist
+- 🎥 OBS Studio integration
+- ⚡ Automatic livestream detection
+- 🔄 Automatic authentication using Google OAuth
 
 ---
 
 # Requirements
 
-- Python 3.10 or newer
-- Google Cloud Project
-- YouTube Data API v3
-- OAuth Client Credentials
+Before installing the project, make sure you have:
+
+- Python **3.10+**
 - OBS Studio (Optional)
+- A Google Cloud Project
+- YouTube Data API v3 enabled
+- Google OAuth Desktop Client
+- A Gemini API Key (Optional)
+- A Custom AI API (Optional)
 
 ---
 
@@ -34,6 +39,7 @@ An AI-powered YouTube Live Moderator that automatically reads live chat messages
 
 ```bash
 git clone https://github.com/YOUR_USERNAME/IA-Youtube.git
+
 cd IA-Youtube
 ```
 
@@ -47,14 +53,19 @@ pip install -r requirements.txt
 
 ---
 
-## 3. Configure Environment Variables
+# Environment Variables
 
-Create a `.env` file in the project root.
+Create a file named
+
+```
+.env
+```
 
 Example:
 
 ```env
 YOUTUBE_API_KEY=
+
 CHANNEL_ID=
 
 CUSTOM_API_URL=
@@ -64,153 +75,263 @@ MODEL_NAME=
 GEMINI_API_KEY=
 ```
 
+Leave optional fields empty if you don't need them.
+
+---
+
+# Google Cloud Setup
+
+## Step 1
+
+Open
+
+https://console.cloud.google.com/
+
+Create a new project.
+
+---
+
+## Step 2
+
+Open
+
+```
+APIs & Services
+```
+
+↓
+
+```
+Library
+```
+
+Enable
+
+```
+YouTube Data API v3
+```
+
+---
+
+## Step 3
+
+Open
+
+```
+Credentials
+```
+
+↓
+
+```
+Create Credentials
+```
+
+↓
+
+```
+API Key
+```
+
+Copy the generated key.
+
+Paste it into
+
+```env
+YOUTUBE_API_KEY=
+```
+
 ---
 
 # Google OAuth Setup
 
-1. Open **Google Cloud Console**
-2. Create a Desktop OAuth Client.
-3. Download the credentials file.
-4. Rename it to:
+Inside
+
+```
+Credentials
+```
+
+Click
+
+```
+Create Credentials
+```
+
+↓
+
+```
+OAuth Client ID
+```
+
+Choose
+
+```
+Desktop App
+```
+
+Download the JSON file.
+
+Rename it to
 
 ```
 client_secret.json
 ```
 
-5. Place it in the project root.
-
-When you run the bot for the first time, it will automatically generate:
-
-```
-token.json
-```
+Move it into the project folder.
 
 ---
 
-# Enable YouTube Data API
+# First Login
 
-Inside Google Cloud Console:
-
-- Enable **YouTube Data API v3**
-- Create an API Key
-
-Paste it into:
-
-```
-YOUTUBE_API_KEY
-```
-
----
-
-# Get Your Channel ID
-
-Copy your YouTube Channel ID and place it inside:
-
-```
-CHANNEL_ID
-```
-
----
-
-# Running the Bot
-
-Start the bot with:
+Run
 
 ```bash
 python AI_MOD_ALL_IN_ONE.py
 ```
 
----
+A browser window will open.
 
-# OBS Integration (Optional)
+Log in with your Google account.
 
-# OBS Script Setup
+Click **Allow**.
 
-If you want the bot to automatically start and stop together with your livestream, follow these steps:
-
-## 1. Open OBS Studio
-
-Launch **OBS Studio**.
-
----
-
-## 2. Open the Scripts Window
-
-Go to:
+After authorization, the project will automatically create
 
 ```
-Tools → Scripts
+token.json
+```
+
+You only need to do this once.
+
+---
+
+# Get Your Channel ID
+
+Open
+
+```
+YouTube Studio
+```
+
+↓
+
+```
+Settings
+```
+
+↓
+
+```
+Channel
+```
+
+↓
+
+```
+Advanced Settings
+```
+
+Copy your Channel ID.
+
+Paste it into
+
+```env
+CHANNEL_ID=
 ```
 
 ---
 
-## 3. Add the Script
+# Gemini API Key (Optional)
 
-Click the **+** button and select:
+Visit
+
+https://aistudio.google.com/app/apikey
+
+Create a new API Key.
+
+Paste it into
+
+```env
+GEMINI_API_KEY=
+```
+
+---
+
+# Custom AI API (Optional)
+
+If you use an OpenAI-compatible server:
+
+```env
+CUSTOM_API_URL=
+CUSTOM_API_KEY=
+MODEL_NAME=
+```
+
+Otherwise, leave them empty.
+
+---
+
+# Running the Bot
+
+Start the bot with
+
+```bash
+python AI_MOD_ALL_IN_ONE.py
+```
+
+If everything is configured correctly, the bot will:
+
+- Detect your livestream
+- Read YouTube Live Chat
+- Send messages to the AI
+- Reply automatically
+
+---
+
+# OBS Studio Integration
+
+If you want the bot to start automatically with OBS:
+
+Open
+
+```
+OBS Studio
+```
+
+↓
+
+```
+Tools
+```
+
+↓
+
+```
+Scripts
+```
+
+↓
+
+Click
+
+```
++
+```
+
+Select
 
 ```
 obs_control.py
 ```
 
-from the project folder.
+The script will automatically detect when streaming starts and launch the bot.
 
 ---
 
-## 4. Configure the Script
-
-If the script requires a path to your project, select the folder containing:
-
-```
-AI_MOD_ALL_IN_ONE.py
-```
-
----
-
-## 5. Start Streaming
-
-Click **Start Streaming** in OBS.
-
-The script will automatically:
-
-- Detect when streaming starts
-- Launch the AI Moderator
-- Monitor YouTube Live Chat
-- Automatically stop the bot when the stream ends
-
----
-
-# Troubleshooting
-
-### Script does not appear
-
-Make sure you are using the **Python version of OBS Studio** that supports Python scripts.
-
----
-
-### Nothing happens after starting the stream
-
-Check that:
-
-- `AI_MOD_ALL_IN_ONE.py` exists.
-- Your `.env` file is correctly configured.
-- `client_secret.json` and `token.json` are present.
-- Your YouTube livestream is public or unlisted and currently live.
-
----
-
-### OBS reports Python errors
-
-Verify that all required Python packages are installed:
-
-```bash
-pip install -r requirements.txt
-```
-
-If the issue persists, check the OBS log for detailed error messages.
 # Project Structure
 
 ```
-IA-Youtube/
+IA-Youtube
 │
 ├── AI_MOD_ALL_IN_ONE.py
 ├── obs_control.py
@@ -227,19 +348,22 @@ IA-Youtube/
 # Workflow
 
 ```
-YouTube Live Chat
+Start Livestream
         │
         ▼
-Read Messages
+Detect Live Stream
         │
         ▼
-Spam Detection
+Read Live Chat
         │
         ▼
-Send to AI
+Spam Filter
         │
         ▼
-Generate Response
+Send Message to AI
+        │
+        ▼
+Receive AI Response
         │
         ▼
 Reply to Live Chat
@@ -247,31 +371,76 @@ Reply to Live Chat
 
 ---
 
-# Supported AI Providers
+# Troubleshooting
 
-- Google Gemini
-- Custom OpenAI-Compatible API
+## No livestream detected
+
+- Make sure your livestream is currently live.
+- Verify that the Channel ID is correct.
 
 ---
 
-# Blacklist
+## OAuth Error
 
-Blocked users are stored in:
+Delete
 
 ```
-blacklist.json
+token.json
 ```
 
-You can manually edit this file to add or remove users.
+Run the project again.
+
+---
+
+## API Key Error
+
+Make sure
+
+```
+YOUTUBE_API_KEY
+```
+
+is valid.
+
+---
+
+## Gemini Error
+
+Verify
+
+```
+GEMINI_API_KEY
+```
+
+and check your API quota.
+
+---
+
+## Missing client_secret.json
+
+Place
+
+```
+client_secret.json
+```
+
+in the project root.
 
 ---
 
 # License
 
-This project is licensed under the **MIT License**.
+MIT License
 
 ---
 
-# Disclaimer
+# Credits
 
-This project is intended for educational and personal use only. Users are responsible for complying with YouTube's Terms of Service and Google's API policies.
+Developed by **YOUR_NAME**
+
+Powered by
+
+- Google Gemini
+- YouTube Data API v3
+- Google OAuth
+- OBS Studio
