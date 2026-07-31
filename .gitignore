@@ -1,0 +1,23 @@
+# Environment and runtime files to ignore
+.env
+.env.bak
+client_secret.json
+token.json
+
+# Logs and runtime artifacts
+bot.log
+ai_reply.txt
+streaming.flag
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Redis dump (if any)
+dump.rdb
+
+# Editor files
+.vscode/
+.idea/
+*.swo
+*.swp
