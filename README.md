@@ -436,7 +436,7 @@ MIT License
 
 # Credits
 
-Developed by **YOUR_NAME**
+Developed by **MIta Kuzota (oiky8)**
 
 Powered by
 
