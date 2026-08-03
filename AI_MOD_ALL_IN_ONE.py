@@ -44,35 +44,51 @@ def ensure_config():
                     k, v = line.split("=", 1)
                     existing_config[k.strip()] = v.strip()
 
-    required_configs = {
-        "CUSTOM_API_URL": "https://player-undesired-kilometer.ngrok-free.dev/v1/chat/completions",
-        "CUSTOM_API_KEY": None,
-        "MODEL_NAME": "gemma4",
-        "GEMINI_MODEL": "gemini-2.5-flash",
-        "GEMINI_API_KEY": None,
-        "YOUTUBE_API_KEY": None,
-        "CHANNEL_ID": None,
-        "TEN_KENH": "StreamerBot"
-    }
-    interactive = sys.stdin is not None and sys.stdin.isatty()
-    updated = False
-    for key, default in required_configs.items():
-        # Uu tien gia tri da co trong .env, chi dien khi thieu hoac rong
-        if existing_config.get(key):
-            continue
-        if default:
-            val = default
-        elif interactive:
-            val = input(f"👉 Vui lòng nhập {key}: ").strip()
-            if not val:
-                print(f"⚠️ Cảnh báo: {key} bị bỏ trống!")
-                val = "MISSING"
-        else:
-            # Chay nhung (OBS, subprocess...) khong co stdin tuong tac -> khong duoc goi input()
-            print(f"⚠️ Cảnh báo: {key} bị thiếu trong .env và đang chạy non-interactive. Gán tạm 'MISSING'.")
+required_configs = {
+    # Optional
+    "CUSTOM_API_URL": "",
+    "CUSTOM_API_KEY": "",
+    "MODEL_NAME": "gemma4",
+    "GEMINI_MODEL": "gemini-2.5-flash",
+    "GEMINI_API_KEY": "",
+
+    # Required
+    "YOUTUBE_API_KEY": None,
+    "CHANNEL_ID": None,
+    "TEN_KENH": "",
+}
+
+optional_keys = {
+    "CUSTOM_API_URL",
+    "CUSTOM_API_KEY",
+    "MODEL_NAME",
+    "GEMINI_MODEL",
+    "GEMINI_API_KEY",
+}
+   for key, default in required_configs.items():
+    if existing_config.get(key):
+        continue
+
+    if default:
+        val = default
+
+    # Nếu là cấu hình tùy chọn thì để trống, không hỏi
+    elif key in optional_keys:
+        val = ""
+
+    # Chỉ hỏi với cấu hình bắt buộc
+    elif interactive:
+        val = input(f"👉 Please enter {key}: ").strip()
+
+        if not val:
+            print(f"⚠️ {key} is required!")
             val = "MISSING"
-        existing_config[key] = val
-        updated = True
+
+    else:
+        print(f"⚠️ Missing required config: {key}")
+        val = "MISSING"
+
+    existing_config[key] = val
 
     # Chi ghi lai file neu co thay doi - giu nguyen moi key khac nguoi dung tu them
     # (vd: AUTO_POST_CHAT, OBS_AUTO_START, CUSTOM_API_BOOT_WAIT...), khong ghi de toan bo .env
