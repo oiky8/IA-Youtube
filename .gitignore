@@ -1,0 +1,16 @@
+.env
+.env.*
+.secret.key
+token.json
+token.enc
+token.json.raw
+client_secret.json
+bot.log
+*.log
+__pycache__/
+*.pyc
+*.bak
+streaming.flag
+ai_reply.txt.tmp
+
+
