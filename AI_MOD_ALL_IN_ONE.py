@@ -168,6 +168,7 @@ def _load_youtube_keys():
 YOUTUBE_API_KEYS = _load_youtube_keys()
 _youtube_key_index = 0
 _youtube_key_lock = Lock()
+_youtube_quota_failed_keys = {}
 
 def get_current_youtube_key():
     if not YOUTUBE_API_KEYS:
@@ -175,16 +176,30 @@ def get_current_youtube_key():
     with _youtube_key_lock:
         return YOUTUBE_API_KEYS[_youtube_key_index % len(YOUTUBE_API_KEYS)]
 
-def rotate_youtube_key(reason="Quota/Loi"):
+def rotate_youtube_key(reason="Quota/Loi", scope="default"):
     global _youtube_key_index
-    if not YOUTUBE_API_KEYS or len(YOUTUBE_API_KEYS) <= 1:
-        logger.warning(f"[YOUTUBE] Chi co 1 key Youtube, khong the xoay key ({reason}).")
+    if not YOUTUBE_API_KEYS:
+        logger.warning(f"[YOUTUBE] Khong co YouTube API key de xoay ({reason}).")
         return False
     with _youtube_key_lock:
+        failed_keys = _youtube_quota_failed_keys.setdefault(scope, set())
+        current_key = YOUTUBE_API_KEYS[_youtube_key_index % len(YOUTUBE_API_KEYS)]
+        failed_keys.add(current_key)
+        for offset in range(1, len(YOUTUBE_API_KEYS) + 1):
+            next_index = (_youtube_key_index + offset) % len(YOUTUBE_API_KEYS)
+            candidate = YOUTUBE_API_KEYS[next_index]
+            if candidate not in failed_keys:
+                _youtube_key_index = next_index
+                logger.warning(f"[YOUTUBE] Da xoay sang API Key #{_youtube_key_index + 1}/{len(YOUTUBE_API_KEYS)} do: {reason}")
+                return True
+        failed_keys.clear()
+        logger.warning(f"[YOUTUBE] Tat ca {len(YOUTUBE_API_KEYS)} key deu het quota ({reason}).")
         _youtube_key_index = (_youtube_key_index + 1) % len(YOUTUBE_API_KEYS)
-        new_key = YOUTUBE_API_KEYS[_youtube_key_index]
-        logger.warning(f"[YOUTUBE] Da xoay sang API Key #{_youtube_key_index + 1}/{len(YOUTUBE_API_KEYS)} do: {reason}")
-        return True
+        return False
+
+def mark_youtube_key_success(scope="default"):
+    with _youtube_key_lock:
+        _youtube_quota_failed_keys.pop(scope, None)
 
 OLLAMA_API_URL = os.getenv("OLLAMA_API_URL", "http://localhost:11434/v1/chat/completions")
 OLLAMA_API_KEY = os.getenv("OLLAMA_API_KEY", "ollama")
@@ -920,6 +935,15 @@ def _is_youtube_quota_error(resp):
     body = (resp.text or "").lower()
     return "quota" in body or "quotaexceeded" in body or "exceeded" in body
 
+def wait_for_youtube_quota_retry(seconds=1800):
+    logger.warning(f"[YOUTUBE] Tat ca key deu het quota. Thu lai sau {seconds // 60} phut.")
+    for _ in range(seconds):
+        with _system_lock:
+            if not _system_running:
+                return
+        if shutdown_event.wait(1):
+            return
+
 def fetch_youtube_chat():
     global current_live_chat_id, _system_running
     chat_id, token = None, None
@@ -948,13 +972,13 @@ def fetch_youtube_chat():
                         timeout=10,
                     )
                     if _is_youtube_quota_error(video_resp):
-                        if rotate_youtube_key("Video API Quota Exceeded"):
+                        if rotate_youtube_key("Video API Quota Exceeded", "video_lookup"):
                             continue
                         else:
-                            logger.warning("[YOUTUBE] Tat ca YouTube API Keys đều hết Quota. Nghỉ 30 phút...")
-                            time.sleep(1800)
+                            wait_for_youtube_quota_retry()
                             continue
                     if video_resp.status_code == 200:
+                        mark_youtube_key_success("video_lookup")
                         videos = video_resp.json().get("items", [])
                         if videos:
                             chat_id = videos[0].get("liveStreamingDetails", {}).get("activeLiveChatId")
@@ -976,16 +1000,16 @@ def fetch_youtube_chat():
                         timeout=10,
                     )
                     if _is_youtube_quota_error(search_resp):
-                        if rotate_youtube_key("Search API Quota Exceeded"):
+                        if rotate_youtube_key("Search API Quota Exceeded", "search"):
                             continue
                         else:
-                            logger.warning("[YOUTUBE] Tat ca YouTube API Keys đều hết Quota. Nghỉ 30 phút...")
-                            time.sleep(1800)
+                            wait_for_youtube_quota_retry()
                             continue
                     if search_resp.status_code != 200:
                         logger.warning(f"[YOUTUBE] Không tìm được livestream active (HTTP {search_resp.status_code}): {search_resp.text[:200]}")
                         time.sleep(60)
                         continue
+                    mark_youtube_key_success("search")
                     items = search_resp.json().get("items", [])
                     if not items:
                         logger.info("[YOUTUBE] Chưa thấy livestream active trên kênh. Chờ 60 giây...")
@@ -1002,16 +1026,16 @@ def fetch_youtube_chat():
                         timeout=10,
                     )
                     if _is_youtube_quota_error(video_resp):
-                        if rotate_youtube_key("Video Details API Quota Exceeded"):
+                        if rotate_youtube_key("Video Details API Quota Exceeded", "video_details"):
                             continue
                         else:
-                            logger.warning("[YOUTUBE] Tat ca YouTube API Keys đều hết Quota. Nghỉ 30 phút...")
-                            time.sleep(1800)
+                            wait_for_youtube_quota_retry()
                             continue
                     if video_resp.status_code != 200:
                         logger.warning(f"[YOUTUBE] Không lấy được liveChatId (HTTP {video_resp.status_code}): {video_resp.text[:200]}")
                         time.sleep(60)
                         continue
+                    mark_youtube_key_success("video_details")
                     videos = video_resp.json().get("items", [])
                     if not videos:
                         logger.info("[YOUTUBE] Livestream vừa tìm thấy không còn khả dụng.")
@@ -1041,11 +1065,10 @@ def fetch_youtube_chat():
                     _system_running = False
                 return
             if _is_youtube_quota_error(resp):
-                if rotate_youtube_key("LiveChat Messages API Quota Exceeded"):
+                if rotate_youtube_key("LiveChat Messages API Quota Exceeded", "live_chat"):
                     continue
                 else:
-                    logger.warning("[YOUTUBE] Tat ca YouTube API Keys đều hết Quota. Nghỉ 30 phút...")
-                    time.sleep(1800)
+                    wait_for_youtube_quota_retry()
                     continue
             if resp.status_code != 200:
                 logger.warning(f"[YOUTUBE] Đọc live chat lỗi HTTP {resp.status_code}: {resp.text[:200]}")
@@ -1065,6 +1088,7 @@ def fetch_youtube_chat():
                     # Loi mang tam thoi hoac 5xx tu Google: giu nguyen chat_id va thu lai sau vai giay de tiet kiem Quota
                     time.sleep(5)
                 continue
+            mark_youtube_key_success("live_chat")
             data = resp.json()
             token = data.get("nextPageToken")
             bot_cid = get_bot_own_channel_id() if AUTO_POST_CHAT else None
@@ -1224,6 +1248,7 @@ def check_youtube_api():
     try:
         resp = requests.get(url, params=params, timeout=8)
         if resp.status_code == 200 and "error" not in resp.text.lower():
+            mark_youtube_key_success("channels")
             logger.info("[OK] YouTube API hoạt động")
             return "Hoạt động"
         logger.error(f"[YOUTUBE] Lỗi HTTP {resp.status_code}: {resp.text[:300]}")
@@ -1469,11 +1494,8 @@ def minimize_console_window():
         logger.warning(f"[SYSTEM] Khong the thu nho console: {e}")
 
 def main():
-    if not diagnose_system():
-        logger.warning("Hệ thống phát hiện lỗi. Bot vẫn cố khởi động nhưng có thể không hoạt động.")
-
     minimize_console_window()
-
+    logger.info("[SYSTEM] Bot đã khởi động, đang chờ tín hiệu OBS.")
     load_blacklists()
     try:
         threading.Thread(target=obs_signal_loop, name="obs_signal", daemon=True).start()
@@ -1495,4 +1517,6 @@ if __name__ == "__main__":
     if "--quota" in sys.argv:
         check_quota_status()
         sys.exit(0)
+    if "--diagnose" in sys.argv:
+        sys.exit(0 if diagnose_system() else 1)
     main()
