@@ -295,6 +295,28 @@ ch = logging.StreamHandler()
 ch.setFormatter(_fmt)
 logger.addHandler(fh); logger.addHandler(ch)
 
+def alert(message, exc_info=None):
+    logger.error(f"[ALERT] {message}", exc_info=exc_info)
+    try:
+        import obspython as obs
+        obs.script_log(obs.LOG_ERROR, message)
+    except ImportError:
+        pass
+    except Exception as exc:
+        logger.warning(f"[OBS] Khong the ghi alert vao OBS Script Log: {exc}")
+    print(f"[ALERT] {message}", file=sys.stderr)
+
+def handle_exception(exc_type, exc_value, exc_traceback):
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+    alert(
+        f"Unhandled exception: {exc_type.__name__}: {exc_value}",
+        exc_info=(exc_type, exc_value, exc_traceback),
+    )
+
+sys.excepthook = handle_exception
+
 session = requests.Session()
 retry = Retry(total=3, backoff_factor=1.2, status_forcelist=[500, 502, 504])
 session.mount("http://", HTTPAdapter(max_retries=retry))
